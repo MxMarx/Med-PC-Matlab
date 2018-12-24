@@ -4,16 +4,62 @@ files = files(~[files.isdir]);
 
 % Get the fata from each file
 t = [];
+b = [];
 for i = 1:length(files)
-    t = [t; LoadPhillipData([files(i).folder '\' files(i).name])];
+    get_timestamps = 1;
+    fname = [files(i).folder '\' files(i).name];
+    [binned_data, timestamps] = LoadData(fname,get_timestamps);
+    
+    t = [t; timestamps];
+    b = [b; binned_data];
 end
 
 % Remove dead rats
 exclude = ismember(t.subject,[7,8,3,4]);
 t = t(~exclude,:);
+exclude = ismember(b.subject,[7,8,3,4]);
+b = b(~exclude,:);
+
+%% Save to excel
+b = sortrows(b,{,'group','date','subject'})
+[fname, fpath] = uiputfile('*.xlsx');
+if ~isnumeric(fpath)
+    writetable(b,[fpath fname])
+end
+
+%% By date
+a = stack(b,{'Infusions','ActiveLeverPresses','InactiveLeverPresses'},'IndexVariableName','event','NewDataVariableName','count');
+a.event = renamecats(a.event,{'Infusions','ActiveLeverPresses','InactiveLeverPresses'},{'Infusions','Active lever presses','Inactive lever presses'});
+a = sortrows(a,{,'group','event','date','subject'});
+
+% Infusions
+figure('position',[100,100,400,420])
+% For the x-axis, round the date down t the morning
+xDate = datenum(dateshift(b.date,'start','day'));
+g = gramm('x',xDate,'y',b.Infusions,'color',b.group);
+g.stat_summary('geom',{'line','errorbar','point'},'setylim',1,'dodge',.05);
+g.set_names('x','Day','y','Infusions','color',' ');
+g.set_datetick('x',6,'keeplimits');
+g.set_limit_extra([.2,.2],[0,0]);
+g.set_line_options('styles',{'--'});
+g.set_title('Infusions')
+g.draw;
+g.facet_axes_handles.YLim(1) = 0; % Make the ylim zero
 
 
+% Lever presses
+figure('position',[100,100,700,420])
+g = gramm('x',datenum(dateshift(a.date,'start','day')),'y',a.count,'color',a.group,'lightness',a.event,'subset',a.event ~= 'Infusions');
+g.stat_summary('geom',{'line','errorbar','point'},'setylim',1,'dodge',.05);
+g.set_names('x','Day','y','Count','column',[],'color','Group','lightness','Lever');
+g.set_datetick('x',6,'keeplimits');
+g.set_limit_extra([.2,.2],[0,0]);
+g.set_line_options('styles',{'--'});
+g.set_color_options('legend','expand','lightness_range',[40,80])
+g.draw;
+g.facet_axes_handles.YLim(1) = 0; % Make the ylim zero
 
+% g.export('file_name','presses_over_day_smoothed')
 
 
 %% By hour
@@ -22,64 +68,42 @@ InputVariables = {'time'};
 OutputVariableNames = {'count','hour'};
 func = @(x) BinByHour(x,3600);
 a = rowfun(func,t,'GroupingVariables',GroupingVariables,'InputVariables',InputVariables,'OutputVariableNames',OutputVariableNames);
+a = sortrows(a,'date');
 
 % Plot the means for each hour
 figure('position',[100,100,800,420])
-g = gramm('x',a.hour - 0.5,'y',a.count,'color',a.event,'subset',a.event ~= 'infusionEnd','column',a.event);
+g = gramm('x',a.hour - 0.5,'y',a.count,'color',a.event,'column',a.event,'row',cellstr(datestr(a.date,'mmm-dd')));
 g.stat_summary('geom',{'errorbar','line'},'setylim',1);
-g.set_order_options('column',0);
-g.set_names('x','Time (h)','y','Count','column',[],'color',' ');
+g.set_order_options('column',0,'row',0);
+g.set_names('x','Time (h)','y','Count','column',[]);
+g.no_legend;
 g.draw;
-% Optional, plot each individual as a single line
+
+% Optional, update the plot with each individual as a single line
 g.update('group',findgroups(a(:,GroupingVariables)));
 g.geom_line('alpha',.13);
 g.no_legend;
 g.draw;
+g.update('group',[]); % This part just returns the ylim to the original
+g.stat_summary('geom',{'errorbar','line'},'setylim',1);
+g.no_legend;
+g.draw;
 % g.export('file_name','presses_over_time')
+
 
 % Plot the data in smoothed 10 minute bins
 func = @(x) BinByHour(x,600);
 a = rowfun(func,t,'GroupingVariables',GroupingVariables,'InputVariables',InputVariables,'OutputVariableNames',OutputVariableNames);
 figure('position',[100,100,800,420])
 g = gramm('x',a.hour,'y',a.count,'color',a.event,'subset',a.event ~= 'infusionEnd','column',a.event);
-g.stat_smooth;
+g.stat_smooth('setylim',1);
 g.set_order_options('column',0);
 g.set_point_options('base_size',1);
 g.set_names('x','Time (h)','y','Count','column',[],'color',' ');
+g.no_legend;
 g.draw;
-g.results.stat_smooth(1).line_handle.Parent.YLim = [0 ,5+max(max([g.results.stat_smooth.y]))];
 % g.export('file_name','presses_over_time_smoothed')
 
-%% By date
-GroupingVariables = {'box','event','room','group','date','subject','experiment'};
-InputVariables = {'time'};
-a = grpstats(t,GroupingVariables,'mean','DataVars','time');
-a = sortrows(a,{,'group','event','date','subject'})
-
-% Infusions
-figure('position',[100,100,400,420])
-% For the x-axis, round the date down t the morning
-xDate = datenum(dateshift(a.date,'start','day'));
-g = gramm('x',xDate,'y',a.GroupCount,'color',a.group,'lightness',a.event,'subset',a.event == 'Infusions');
-g.stat_summary('geom',{'line','errorbar','point'},'setylim',1,'dodge',.05);
-g.set_names('x','Day','y','Count (per hour)','color',' ');
-g.set_datetick('x',6,'keeplimits');
-g.set_limit_extra([.2,.2],[0,0]);
-g.set_line_options('styles',{'--'});
-g.draw;
-
-% Lever presses
-figure('position',[100,100,400,420])
-g = gramm('x',datenum(dateshift(a.date,'start','day')),'y',a.GroupCount,'color',a.group,'lightness',a.event,'subset',a.event ~= 'Infusions');
-g.stat_summary('geom',{'line','errorbar','point'},'setylim',1,'dodge',.05);
-g.set_names('x','Day','y','Count (per hour)','column',[],'color',' ');
-g.set_datetick('x',6,'keeplimits');
-g.set_limit_extra([.2,.2],[0,0]);
-g.set_line_options('styles',{'--'});
-g.set_color_options('legend','expand')
-g.draw;
-
-% g.export('file_name','presses_over_day_smoothed')
 
 %% Plot raster
 GroupingVariables = {'box','filename','date','event','subject'};
@@ -96,7 +120,7 @@ g.draw
 
 
 %% Plot estimated levels
-GroupingVariables = {'box','filename','date','room'};
+GroupingVariables = {'box','filename','date','room','subject'};
 InputVariables = {'time','event', 'box', 'date'};
 OutputVariableNames = {'druglevel','time','name'};
 a = rowfun(@(x1,x2,box,date)...
@@ -105,28 +129,13 @@ a = rowfun(@(x1,x2,box,date)...
     'GroupingVariables',GroupingVariables,'InputVariables',InputVariables,'OutputVariableNames',OutputVariableNames);
 
 s = findgroups(a(:,{'box','filename'}));
-figure('position',[100,100,764,615])
-g = gram('x',a.time,'y',a.druglevel,'color',a.box)
-g.fig(a.room)
-g.geom_line
-g.facet_wrap(a.name)
-g.set_names('x','Time (m)','y','Estimated Brain Level (uM)','column',[],'fig',[])
-g.no_legend
+figure('position',[100,100,764,615]);
+g = gramm('x',a.time,'y',a.druglevel,'color',a.box,'lightness',cellstr(datestr(a.date,'mmm-dd')));
+% g.fig(a.room)
+g.geom_line;
+g.facet_wrap(a.subject,'ncols',5)
+% g.facet_grid(cellstr(a.date,'MMM-dd'),a.subject);
+g.set_names('x','Time (m)','y','Estimated Brain Level (uM)','column','Rat','lightness','Day');
+g.set_color_options('legend','merge','lightness_range',[30,80])
+g.set_layout_options('redraw_gap',.01)
 g.draw
-
-
-%% Save to excel
-GroupingVariables = {'room','filename','date','box','group','subject','event'};
-InputVariables = {'time'};
-OutputVariableNames = {'count','hour'};
-func = @(x) BinByHour(x,3600);
-a = rowfun(func,t,'GroupingVariables',GroupingVariables,'InputVariables',InputVariables,'OutputVariableNames',OutputVariableNames);
-a = sortrows(a,{,'group','event','date','subject'})
-
-% Unstack the events
-GroupingVariables = {'filename','room','date','box','hour'};
-b = unstack(a(a.event~='infusionEnd',:),'count','event','GroupingVariables',GroupingVariables);
-b = fillmissing(b,'constant',0,'DataVariables',{'Infusions','ActiveLeverPresses','InactiveLeverPresses'});
-[fname fpath] = uiputfile('*.xlsx');
-writetable(b,[fpath fname])
-
