@@ -1,5 +1,5 @@
 %% Find the files in the folder
-files = dir('V:\Russell\Self-Admin\data\DSA3');
+files = dir('E:\Within-Session Threshold SPIW');
 files = files(~[files.isdir]);
 
 % Get the fata from each file
@@ -15,16 +15,29 @@ for i = 1:length(files)
 end
 
 % Remove dead rats
-exclude = ismember(t.subject,[7,8,3,4]);
+exclude = ismember(t.subject,[3]);
 t = t(~exclude,:);
-exclude = ismember(b.subject,[7,8,3,4]);
+exclude = ismember(b.subject,[3]);
 b = b(~exclude,:);
 
 %% Save to excel
-b = sortrows(b,{,'group','date','subject'})
+b = sortrows(b,{'group','date','subject'})
 [fname, fpath] = uiputfile('*.xlsx');
 if ~isnumeric(fpath)
-    writetable(b,[fpath fname])
+    infusions = b(:, {'Infusions', 'group', 'subject', 'session'});
+    infusions = unstack(infusions,'Infusions','session');
+    infusions.Type = repmat({'infusion'},height(infusions),1);
+    
+    active = b(:, {'ActiveLeverPresses', 'group', 'subject', 'session'});
+    active = unstack(active,'ActiveLeverPresses','session');
+    active.Type = repmat({'Active'},height(active),1);
+    
+    inactive = b(:, {'InactiveLeverPresses', 'group', 'subject', 'session'});
+    inactive = unstack(inactive,'InactiveLeverPresses','session');
+    inactive.Type = repmat({'Inactive'},height(inactive),1);
+
+    output = [infusions; active; inactive]
+    writetable(output,[fpath fname])
 end
 
 %% By date
@@ -63,16 +76,16 @@ g.facet_axes_handles.YLim(1) = 0; % Make the ylim zero
 
 
 %% By hour
-GroupingVariables = {'box','filename','date','event'};
+GroupingVariables = {'box','filename','date','event','group'};
 InputVariables = {'time'};
 OutputVariableNames = {'count','hour'};
-func = @(x) BinByHour(x,3600);
+func = @(x) BinByHour(x,600,190*60);
 a = rowfun(func,t,'GroupingVariables',GroupingVariables,'InputVariables',InputVariables,'OutputVariableNames',OutputVariableNames);
 a = sortrows(a,'date');
 
 % Plot the means for each hour
 figure('position',[100,100,800,420])
-g = gramm('x',a.hour - 0.5,'y',a.count,'color',a.event,'column',a.event,'row',cellstr(datestr(a.date,'mmm-dd')));
+g = gramm('x',a.hour - 0.5,'y',a.count,'color',a.group,'column',a.event,'fig',cellstr(datestr(a.date,'mmm-dd')));
 g.stat_summary('geom',{'errorbar','line'},'setylim',1);
 g.set_order_options('column',0,'row',0);
 g.set_names('x','Time (h)','y','Count','column',[]);
@@ -92,7 +105,7 @@ g.draw;
 
 
 % Plot the data in smoothed 10 minute bins
-func = @(x) BinByHour(x,600);
+func = @(x) BinByHour(x,600,190*60);
 a = rowfun(func,t,'GroupingVariables',GroupingVariables,'InputVariables',InputVariables,'OutputVariableNames',OutputVariableNames);
 figure('position',[100,100,800,420])
 g = gramm('x',a.hour,'y',a.count,'color',a.event,'subset',a.event ~= 'infusionEnd','column',a.event);
@@ -120,22 +133,22 @@ g.draw
 
 
 %% Plot estimated levels
-GroupingVariables = {'box','filename','date','room','subject'};
+GroupingVariables = {'box','filename','date','room','subject','group'};
 InputVariables = {'time','event', 'box', 'date'};
 OutputVariableNames = {'druglevel','time','name'};
 a = rowfun(@(x1,x2,box,date)...
-    pharmacokineticsV2([x1(x2=='Infusions'),x1(x2=='Infusions')+3.5] * 1000, .5, 2, 360, 0, box, date),...
-    t(t.event=='Infusions' & t.group == 'COKE',:),...
+    pharmacokineticsV2([x1(x2=='Infusions'),x1(x2=='Infusions')+3.5] * 1000, .5, 2, 190, 0, box, date),...
+    t(t.event=='Infusions',:),...
     'GroupingVariables',GroupingVariables,'InputVariables',InputVariables,'OutputVariableNames',OutputVariableNames);
 
 s = findgroups(a(:,{'box','filename'}));
 figure('position',[100,100,764,615]);
-g = gramm('x',a.time,'y',a.druglevel,'color',a.box,'lightness',cellstr(datestr(a.date,'mmm-dd')));
+g = gramm('x',a.time,'y',a.druglevel,'lightness',a.group,'color',cellstr(datestr(a.date,'mmm-dd')));
 % g.fig(a.room)
 g.geom_line;
 g.facet_wrap(a.subject,'ncols',5)
 % g.facet_grid(cellstr(a.date,'MMM-dd'),a.subject);
 g.set_names('x','Time (m)','y','Estimated Brain Level (uM)','column','Rat','lightness','Day');
-g.set_color_options('legend','merge','lightness_range',[30,80])
+g.set_color_options('legend','separate','lightness_range',[50,80])
 g.set_layout_options('redraw_gap',.01)
 g.draw

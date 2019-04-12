@@ -73,8 +73,10 @@ for s = dates
     group = id{5};
     box = id{6};
     date = datetime([id{1}{1} ' ' id{7}{1}]);
+    session = strsplit(fname,'_');
+    session = session(end-1);
     filename = categorical({fname});
-    subject_data = table(subject,experiment,group,box,date,filename,room);
+    subject_data = table(subject,experiment,group,box,date,filename,room,session);
     
     event_counts = table(total_infusions,total_activelever,total_inactivelever,'VariableNames',{'Infusions','ActiveLeverPresses','InactiveLeverPresses'});
     binned_data = [binned_data; subject_data, event_counts];
