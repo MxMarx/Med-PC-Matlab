@@ -21,22 +21,27 @@ exclude = ismember(b.subject,[3]);
 b = b(~exclude,:);
 
 %% Save to excel
-b = sortrows(b,{'group','date','subject'})
+b = sortrows(b,{'group','subject','session'})
+
+b.session = num2str(b.session, 'SA %-u')
+b.session 
 [fname, fpath] = uiputfile('*.xlsx');
 if ~isnumeric(fpath)
-    infusions = b(:, {'Infusions', 'group', 'subject', 'session'});
+    infusions = b(:, {'Infusions', 'subject', 'group', 'session'});
     infusions = unstack(infusions,'Infusions','session');
     infusions.Type = repmat({'infusion'},height(infusions),1);
     
-    active = b(:, {'ActiveLeverPresses', 'group', 'subject', 'session'});
+    active = b(:, {'ActiveLeverPresses', 'subject', 'group', 'session'});
     active = unstack(active,'ActiveLeverPresses','session');
     active.Type = repmat({'Active'},height(active),1);
     
-    inactive = b(:, {'InactiveLeverPresses', 'group', 'subject', 'session'});
+    inactive = b(:, {'InactiveLeverPresses', 'subject', 'group', 'session'});
     inactive = unstack(inactive,'InactiveLeverPresses','session');
     inactive.Type = repmat({'Inactive'},height(inactive),1);
 
     output = [infusions; active; inactive]
+    output = movevars(output,'Type','Before',1)
+    
     writetable(output,[fpath fname])
 end
 
@@ -65,7 +70,6 @@ figure('position',[100,100,700,420])
 g = gramm('x',datenum(dateshift(a.date,'start','day')),'y',a.count,'color',a.group,'lightness',a.event,'subset',a.event ~= 'Infusions');
 g.stat_summary('geom',{'line','errorbar','point'},'setylim',1,'dodge',.05);
 g.set_names('x','Day','y','Count','column',[],'color','Group','lightness','Lever');
-g.set_datetick('x',6,'keeplimits');
 g.set_limit_extra([.2,.2],[0,0]);
 g.set_line_options('styles',{'--'});
 g.set_color_options('legend','expand','lightness_range',[40,80])

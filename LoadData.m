@@ -74,7 +74,9 @@ for s = dates
     box = id{6};
     date = datetime([id{1}{1} ' ' id{7}{1}]);
     session = strsplit(fname,'_');
-    session = session(end-1);
+    session = session{end-1};
+    session = session(2:end);
+    session = str2num(session);
     filename = categorical({fname});
     subject_data = table(subject,experiment,group,box,date,filename,room,session);
     
