@@ -23,20 +23,19 @@ b = b(~exclude,:);
 %% Save to excel
 b = sortrows(b,{'group','subject','session'})
 
-b.session = num2str(b.session, 'SA %-u')
-b.session 
+b.sessionStr = cellstr(num2str(b.session, 'S%-u'))
 [fname, fpath] = uiputfile('*.xlsx');
 if ~isnumeric(fpath)
-    infusions = b(:, {'Infusions', 'subject', 'group', 'session'});
-    infusions = unstack(infusions,'Infusions','session');
+    infusions = b(:, {'Infusions', 'subject', 'group', 'sessionStr'});
+    infusions = unstack(infusions,'Infusions','sessionStr');
     infusions.Type = repmat({'infusion'},height(infusions),1);
     
-    active = b(:, {'ActiveLeverPresses', 'subject', 'group', 'session'});
-    active = unstack(active,'ActiveLeverPresses','session');
+    active = b(:, {'ActiveLeverPresses', 'subject', 'group', 'sessionStr'});
+    active = unstack(active,'ActiveLeverPresses','sessionStr');
     active.Type = repmat({'Active'},height(active),1);
     
-    inactive = b(:, {'InactiveLeverPresses', 'subject', 'group', 'session'});
-    inactive = unstack(inactive,'InactiveLeverPresses','session');
+    inactive = b(:, {'InactiveLeverPresses', 'subject', 'group', 'sessionStr'});
+    inactive = unstack(inactive,'InactiveLeverPresses','sessionStr');
     inactive.Type = repmat({'Inactive'},height(inactive),1);
 
     output = [infusions; active; inactive]
@@ -46,21 +45,19 @@ if ~isnumeric(fpath)
 end
 
 %% By date
+b = sortrows(b,{'session','group'});
 a = stack(b,{'Infusions','ActiveLeverPresses','InactiveLeverPresses'},'IndexVariableName','event','NewDataVariableName','count');
 a.event = renamecats(a.event,{'Infusions','ActiveLeverPresses','InactiveLeverPresses'},{'Infusions','Active lever presses','Inactive lever presses'});
-a = sortrows(a,{,'group','event','date','subject'});
 
 % Infusions
 figure('position',[100,100,400,420])
-% For the x-axis, round the date down t the morning
-xDate = datenum(dateshift(b.date,'start','day'));
-g = gramm('x',xDate,'y',b.Infusions,'color',b.group);
+g = gramm('x',b.sessionStr,'y',b.Infusions,'color',b.group);
 g.stat_summary('geom',{'line','errorbar','point'},'setylim',1,'dodge',.05);
 g.set_names('x','Day','y','Infusions','color',' ');
-g.set_datetick('x',6,'keeplimits');
-g.set_limit_extra([.2,.2],[0,0]);
+g.set_limit_extra([.05,.05],[0,0]);
 g.set_line_options('styles',{'--'});
 g.set_title('Infusions')
+g.set_order_options('x',0)
 g.draw;
 g.facet_axes_handles.YLim(1) = 0; % Make the ylim zero
 
@@ -96,16 +93,16 @@ g.set_names('x','Time (h)','y','Count','column',[]);
 g.no_legend;
 g.draw;
 
-% Optional, update the plot with each individual as a single line
-g.update('group',findgroups(a(:,GroupingVariables)));
-g.geom_line('alpha',.13);
-g.no_legend;
-g.draw;
-g.update('group',[]); % This part just returns the ylim to the original
-g.stat_summary('geom',{'errorbar','line'},'setylim',1);
-g.no_legend;
-g.draw;
-% g.export('file_name','presses_over_time')
+% % Optional, update the plot with each individual as a single line
+% g.update('group',findgroups(a(:,GroupingVariables)));
+% g.geom_line('alpha',.13);
+% g.no_legend;
+% g.draw;
+% g.update('group',[]); % This part just returns the ylim to the original
+% g.stat_summary('geom',{'errorbar','line'},'setylim',1);
+% g.no_legend;
+% g.draw;
+% % g.export('file_name','presses_over_time')
 
 
 % Plot the data in smoothed 10 minute bins
@@ -119,7 +116,7 @@ g.set_point_options('base_size',1);
 g.set_names('x','Time (h)','y','Count','column',[],'color',' ');
 g.no_legend;
 g.draw;
-% g.export('file_name','presses_over_time_smoothed')
+% g.export('file_name','presses_over_time_smoothed','file_type','png')
 
 
 %% Plot raster
