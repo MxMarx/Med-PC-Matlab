@@ -67,7 +67,7 @@ for s = dates
     id = textscan(rat,[
         'Start Date: %C \r\n',...
         'End Date: %C \r\n',...
-        'Subject: %C \r\n',...
+        'Subject: %f \r\n',...
         'Experiment: %C \r\n',...
         'Group: %C \r\n',...
         'Box: %C \r\n'],1);
@@ -78,8 +78,14 @@ for s = dates
     box = repmat(id{6},length(event),1);
     date = repmat(id{1},length(event),1);
     
+    session = strsplit(fname,'_');
+    session = session{end-1};
+    session = session(4:end);
+    session = str2num(session);
+    session = repmat(session,length(event),1);
 
-    t = table(subject,experiment,group,box,date,times,event,dose,'variableNames',{'subject','experiment','group','box','date','time','event','dose'});
+
+    t = table(subject,experiment,group,box,date,times,event,dose,session);%'variableNames',{'subject','experiment','group','box','date','time','event','dose'});
     t = t(1:eventcount,:);
     output = [output; t];
 end
