@@ -17,13 +17,22 @@ t = t(~exclude,:);
 
 t.time = t.times ./ 100;
 %% Estimate brain estimated levels
-GroupingVariables = {'subject','experiment','group','box','date'};
+GroupingVariables = {'subject','experiment','group','box','session'};
 InputVariables = {'time','event'};
 OutputVariableNames = {'druglevel','time'};
-a = rowfun(@(time,event,box,date)...
-    pharmacokineticsV3([time(event=='Infusion start'),time(event=='Infusion end')]*1000, .5, 2, 110, 0),... % [start time, end time], rat size in kg, session length in minutes
+a = rowfun(@(time,event)...
+    pharmacokineticsV3([time(event=='Infusion start'),time(event=='Infusion end')]*1000),... % [start time, end time], rat size in kg, session length in minutes
     t,...
     'GroupingVariables',GroupingVariables,'InputVariables',InputVariables,'OutputVariableNames',OutputVariableNames);
+
+figure('position',[100,100,1164,815]);
+g = gramm('x',a.time,'y',a.druglevel,'color',a.box,'lightness',a.session);
+g.geom_line;
+g.facet_wrap(a.subject,'ncols',5)
+g.set_names('x','Time (m)','y','Estimated Brain Level (uM)','column','Rat','lightness','Day');
+g.set_color_options('legend','merge','lightness_range',[30,80])
+g.set_layout_options('redraw_gap',.01)
+g.draw
 
 %% Raster plot of lever presses
 GroupingVariables = {'subject','experiment','group','box','session'};
@@ -38,16 +47,6 @@ g(1,1).geom_raster
 g(2,1).stat_density
 g.draw
 
-%% Plot brain levels
-figure('position',[100,100,1164,815]);
-g = gramm('x',a.time,'y',a.druglevel,'color',a.box,'lightness',a.date);
-g.geom_line;
-g.facet_wrap(a.subject,'ncols',5)
-g.set_names('x','Time (m)','y','Estimated Brain Level (uM)','column','Rat','lightness','Day');
-g.set_color_options('legend','merge','lightness_range',[30,80])
-g.set_layout_options('redraw_gap',.01)
-g.draw
-g.export('file_name','Brain cocaine levels','file_type','png');
 
 %%
 func = @(x) deal(sum(x == 'Infusion start'), sum(x == 'Left active FR press' | x == 'Left press during infusion'));

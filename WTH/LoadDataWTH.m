@@ -79,7 +79,7 @@ for s = dates
     date = repmat(id{1},length(event),1);
     
     session = strsplit(fname,'_');
-    session = session{end-1};
+    session = session{contains(session,'WTH')};
     session = session(4:end);
     session = str2num(session);
     session = repmat(session,length(event),1);
