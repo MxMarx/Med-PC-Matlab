@@ -25,7 +25,7 @@ p.addParameter('duration', [], val); % Duration of the session in minutes
 p.addParameter('weight', 500, val); % Rat weight in grams
 p.addParameter('mg_mL', [], val); % Cocaine concentration (mg/mL)
 p.addParameter('mL_S', [], val); % pump flow rate (mL/sec)
-p.addParameter('mg_Kg_s', 0.421 / 3.156, val); % Cocaine mg/Kg/sec
+p.addParameter('mg_Kg_s', 0.366 / 3.156, val); % Cocaine mg/Kg/sec
         
 p.parse(varargin{:});
 %% Calculate uM per Kg per second
